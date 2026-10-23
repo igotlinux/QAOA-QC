@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QAOA Community Detection | COEP Tech</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --stage-bg:#f0ebde;
+  --slide-bg:#f0ebde;
+  --paper:#f0ebde;
+  --paper-cool:#e6e0ce;
+  --ink:#001141;
+  --ink-mid:#001d6c;
+  --ink-soft:#343a3f;
+  --rule:rgba(0,29,108,.22);
+  --blue:#0f62fe;
+  --blue-dark:#001141;
+  --blue-light:#78a9ff;
+  --cyan:#0f62fe;
+  --teal:#001d6c;
+  --yellow:#0f62fe;
+  --red:#0f62fe;
+  --green:#0f62fe;
+  --plex:'IBM Plex Sans',sans-serif;
+  --mono:'IBM Plex Mono',monospace;
+  --plex-display:'IBM Plex Sans',sans-serif;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+/* ===========================================
+   FIXED 16:9 STAGE: MANDATORY BASE STYLES
+   Include this ENTIRE file in every presentation.
+   Slides are authored at 1920×1080 and scaled as a whole.
+   =========================================== */
+
+/* 1. Lock the browser viewport */
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+
+/* 2. Full-window deck viewport */
+.deck-viewport {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+
+/* 3. Fixed 16:9 design canvas.
+   JavaScript sets transform: translate(...) scale(...). */
+.deck-stage {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    transform-origin: 0 0;
+    background: var(--slide-bg, #fff);
+}
+
+/* 4. Slides stack inside the fixed stage.
+   Content must be laid out at 1920×1080, not reflowed per device. */
+.slide {
+    position: absolute;
+    inset: 0;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    display: block;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    background: var(--slide-bg, #fff);
+}
+
+.slide.active,
+.slide.visible {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 1;
+}
+
+/* 5. Keep media inside authored slide bounds */
+img,
+video,
+canvas,
+svg {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* 6. Presentation chrome stays outside the slide design system */
+.deck-controls {
+    position: fixed;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    z-index: 1000;
+}
+
+/* 7. Print one fixed-size slide per page */
+@media print {
+    html,
+    body {
+        width: 1920px;
+        height: auto;
+        overflow: visible;
+        background: #fff;
+    }
+
+    .deck-viewport {
+        position: static;
+        overflow: visible;
+        background: #fff;
+    }
+
+    .deck-stage {
+        position: static;
+        width: auto;
+        height: auto;
+        transform: none !important;
+        background: none;
+    }
+
+    .slide {
+        position: relative;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        width: 1920px;
+        height: 1080px;
+        break-after: page;
+        page-break-after: always;
+    }
+
+    .slide:last-child {
+        break-after: auto;
+        page-break-after: auto;
+    }
+
+    .deck-controls {
+        display: none !important;
+    }
+}
+
+/* 8. Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.2s !important;
+    }
+}
+
+/* === IBM-inspired deck system: neutral field, purposeful blue, 8px rhythm === */
+* { box-sizing:border-box; }
+body { font-family:var(--plex); color:var(--ink); }
+.slide { padding:0; background:#fff; transition:opacity .28s var(--ease), transform .28s var(--ease); transform:translateX(26px); }
+.slide.from-left { transform:translateX(-26px); }
+.slide.active { transform:translateX(0); }
+.slide.exiting { visibility:visible; opacity:0; pointer-events:none; z-index:0; transform:translateX(-26px); }
+.canvas-grid { position:absolute; inset:0; pointer-events:none; opacity:.15; background-image:linear-gradient(to right,rgba(15,98,254,.28) 1px,transparent 1px),linear-gradient(to bottom,rgba(15,98,254,.28) 1px,transparent 1px); background-size:64px 64px; mask-image:linear-gradient(90deg,transparent 0%,#000 30%,#000 100%); }
+.slide-dark { background:var(--blue-dark); color:#fff; }
+.slide-dark .slide-grid { opacity:.13; }
+.slide-grid { position:absolute; inset:0; pointer-events:none; background-image:linear-gradient(rgba(120,169,255,.45) 1px,transparent 1px),linear-gradient(90deg,rgba(120,169,255,.45) 1px,transparent 1px); background-size:64px 64px; opacity:.08; mask-image:linear-gradient(90deg,transparent 0%,#000 35%,#000 100%); }
+.masthead { position:absolute; top:64px; left:96px; right:96px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--rule); padding:0 0 16px; font:500 17px var(--mono); color:var(--ink-mid); }
+.slide-dark .masthead { color:#d0e2ff; border-color:#343a3f; }
+.mast-mark { display:flex; align-items:center; gap:16px; }
+.mark-block { width:18px; height:18px; background:var(--blue); }
+.slide-dark .mark-block { background:var(--cyan); }
+.slide-no { color:var(--blue); font:500 16px var(--mono); }
+.slide-dark .slide-no { color:var(--cyan); }
+.kicker { margin:0 0 28px; color:var(--blue); font:500 18px var(--mono); }
+.slide-dark .kicker { color:var(--cyan); }
+.title { margin:0; max-width:1450px; font-size:90px; line-height:1.04; font-weight:600; letter-spacing:0; }
+.title-lg { font-size:62px; line-height:1.05; }
+.subtitle { margin:24px 0 0; max-width:1180px; color:var(--ink-soft); font-size:30px; line-height:1.35; }
+.slide-dark .subtitle { color:#d0d7e0; }
+.slide-head { position:absolute; left:112px; top:166px; right:112px; }
+.slide-head[style*="width:1240px"] { right:auto; }
+.slide-body { position:absolute; left:112px; right:112px; top:338px; bottom:112px; }
+.footer { position:absolute; left:112px; right:112px; bottom:54px; display:flex; justify-content:space-between; border-top:1px solid var(--rule); padding-top:14px; color:var(--ink-soft); font:400 14px var(--mono); }
+.slide-dark .footer { color:#c6c6c6; border-color:#343a3f; }
+.reveal { opacity:0; transform:translateY(20px); transition:opacity .32s var(--ease),transform .32s var(--ease); }
+.visible .reveal { opacity:1; transform:translateY(0); }
+.visible .reveal:nth-child(2) { transition-delay:.08s; }
+.visible .reveal:nth-child(3) { transition-delay:.16s; }
+.visible .reveal:nth-child(4) { transition-delay:.24s; }
+.visible .reveal:nth-child(5) { transition-delay:.32s; }
+.kicker.reveal { transition-delay:.04s; }
+.rule { height:2px; background:var(--blue); }
+.slide-dark .rule { background:var(--cyan); }
+.cols-2 { display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:center; height:100%; }
+.cols-wide { display:grid; grid-template-columns:1.25fr .75fr; gap:64px; align-items:center; height:100%; }
+.cols-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:40px; }
+.big-number { color:var(--blue); font:500 126px/.95 var(--mono); letter-spacing:0; }
+.slide-dark .big-number { color:var(--cyan); }
+.label { color:var(--ink-soft); font:500 16px var(--mono); }
+.slide-dark .label { color:#d0d7e0; }
+.equation { padding:30px 0; border-top:2px solid var(--blue); border-bottom:1px solid var(--rule); font:500 36px/1.5 var(--mono); color:var(--blue-dark); }
+.slide-dark .equation { color:#fff; border-color:var(--cyan); }
+.small-equation { font:400 25px/1.55 var(--mono); color:var(--ink-mid); }
+.slide-dark .small-equation { color:#d0d7e0; }
+.stat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:32px; margin-top:48px; }
+.stat { border-top:2px solid var(--blue); padding-top:18px; }
+.stat strong { display:block; font:500 40px var(--mono); color:var(--blue); }
+.stat span { display:block; margin-top:8px; color:var(--ink-soft); font-size:18px; }
+.slide-dark .stat { border-color:var(--cyan); }
+.slide-dark .stat strong { color:var(--cyan); }
+.slide-dark .stat span { color:#d0d7e0; }
+.metric-row { display:grid; grid-template-columns:140px 1fr 140px; align-items:center; gap:24px; margin:20px 0; font-size:20px; }
+.metric-label,.metric-value { font:500 18px var(--mono); }
+.metric-value { text-align:right; }
+.track { height:18px; background:#e0e0e0; overflow:hidden; }
+.track > i { display:block; height:100%; width:var(--value); background:var(--blue); transform:scaleX(0); transform-origin:left; transition:transform .7s var(--ease); }
+.visible .track > i { transform:scaleX(1); }
+.metric-qaoa .track > i { background:var(--blue); }
+.metric-classic .track > i { background:#697077; }
+.metric-noise .track > i { background:var(--teal); }
+.table { width:100%; border-collapse:collapse; font-size:20px; }
+.table th { text-align:left; font:500 16px var(--mono); color:var(--ink-soft); border-bottom:2px solid var(--ink); padding:14px 18px 14px 0; }
+.table td { border-bottom:1px solid var(--rule); padding:16px 18px 16px 0; }
+.table td.num { font:500 18px var(--mono); }
+.table .accent { color:var(--blue); font-weight:600; }
+.slide-dark .table th,.slide-dark .table td { color:#fff; border-color:#343a3f; }
+.slide-dark .table th { color:#a6c8ff; }
+.network-svg { width:100%; height:620px; }
+.network-svg text { font-family:var(--plex); }
+.network-svg .edge { stroke:#a8a8a8; stroke-width:3; }
+.network-svg .edge.cut { stroke:var(--yellow); stroke-width:5; }
+.network-svg .node-a { fill:var(--blue); stroke:#fff; stroke-width:3; }
+.network-svg .node-b { fill:var(--teal); stroke:#fff; stroke-width:3; }
+.network-svg .node-label { fill:var(--ink); font-size:17px; }
+.network-svg .group-label { font:500 16px var(--mono); fill:var(--blue); }
+.slide-dark .network-svg .node-label { fill:#fff; }
+.flow { display:flex; align-items:center; gap:26px; }
+.flow-step { flex:1; min-height:190px; border-top:3px solid var(--blue); padding:24px 18px 0 0; }
+.flow-step .step-num { font:500 15px var(--mono); color:var(--blue); }
+.flow-step h3 { margin:18px 0 10px; font-size:29px; font-weight:600; }
+.flow-step p { margin:0; color:var(--ink-soft); font-size:19px; line-height:1.45; }
+.flow-arrow { color:var(--blue); font:500 32px var(--mono); }
+.circuit { display:grid; grid-template-columns:160px 1fr 1fr 150px; gap:18px; align-items:stretch; height:360px; }
+.circuit-stage { border-top:3px solid var(--blue); padding:20px 16px; background:var(--paper-cool); }
+.circuit-stage.cost { border-color:var(--red); }
+.circuit-stage.mixer { border-color:var(--teal); }
+.circuit-stage h3 { font:500 18px var(--mono); margin:0 0 20px; }
+.wires { display:grid; gap:16px; margin-top:40px; }
+.wire { height:2px; background:#697077; position:relative; }
+.wire::after { content:""; position:absolute; left:48%; top:-7px; width:16px; height:16px; border-radius:50%; background:var(--blue); }
+.cost .wire::after { background:var(--red); border-radius:2px; }
+.mixer .wire::after { background:var(--teal); border-radius:2px; }
+.callout { border-left:4px solid var(--blue); padding:14px 20px; background:var(--paper-cool); font-size:20px; line-height:1.45; }
+.slide-dark .callout { border-color:var(--cyan); background:#001d6c; }
+.tag { display:inline-block; padding:8px 12px; border:1px solid currentColor; color:var(--blue); font:500 14px var(--mono); }
+.slide-dark .tag { color:#a6c8ff; }
+.demo-link { display:inline-flex; align-items:center; min-height:64px; padding:0 28px; color:#fff; background:var(--blue); text-decoration:none; font:500 19px var(--mono); transition:background .18s var(--ease),transform .18s var(--ease); }
+.demo-link:hover { background:var(--blue-dark); transform:translateY(-2px); }
+.reveal-line { height:3px; background:var(--blue); width:0; transition:width .7s var(--ease); }
+.visible .reveal-line { width:100%; }
+.speaker-notes { display:none; }
+.speaker-notes[hidden] { display:none; }
+.deck-controls { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:8px; width:min(760px,calc(100vw - 24px)); padding:8px; color:#fff; background:var(--blue-dark); border:1px solid #343a3f; border-radius:4px; box-shadow:0 8px 24px rgba(0,17,65,.24); font:500 13px var(--mono); }
+.deck-controls button { min-height:40px; padding:0 14px; border:1px solid #343a3f; border-radius:2px; color:#fff; background:transparent; font:500 13px var(--mono); cursor:pointer; }
+.deck-controls button:hover { background:var(--blue); border-color:var(--blue); }
+.deck-controls button:focus-visible,.notes-panel button:focus-visible { outline:3px solid var(--yellow); outline-offset:2px; }
+#slideCounter { min-width:72px; text-align:center; color:#d0e2ff; }
+#saveDeck { display:none; }
+.edit-mode #saveDeck { display:inline-flex; align-items:center; }
+.edit-hotzone { position:fixed; top:0; left:0; width:88px; height:88px; z-index:1001; }
+.edit-toggle { position:fixed; top:14px; left:14px; z-index:1002; opacity:0; pointer-events:none; transition:opacity .2s ease; }
+.edit-toggle.show,.edit-toggle.active { opacity:1; pointer-events:auto; }
+.edit-mode [data-editable] { outline:2px dashed var(--blue); outline-offset:4px; cursor:text; }
+.notes-panel { position:fixed; top:18px; right:18px; z-index:1003; width:min(440px,calc(100vw - 36px)); max-height:72vh; overflow:auto; padding:20px; color:#161616; background:#fff; border:1px solid #a8a8a8; box-shadow:0 12px 32px rgba(0,0,0,.24); opacity:0; visibility:hidden; pointer-events:none; transform:translateY(8px); transition:opacity .2s ease,transform .2s ease,visibility .2s; }
+.notes-panel.open { opacity:1; visibility:visible; pointer-events:auto; transform:translateY(0); }
+.notes-head { display:flex; justify-content:space-between; align-items:center; padding-bottom:12px; border-bottom:1px solid #c6c6c6; font:500 14px var(--mono); }
+.notes-head button { padding:6px 10px; border:1px solid #8d8d8d; color:#161616; background:#fff; font:500 12px var(--mono); cursor:pointer; }
+#notesText { padding-top:14px; color:#393939; font:400 14px/1.55 var(--plex); }
+@media (max-width:520px) { .deck-controls { gap:5px; padding:6px; } .deck-controls button { min-height:36px; padding:0 9px; font-size:11px; } #slideCounter { min-width:52px; font-size:11px; } }
+@media print { .speaker-notes { display:none!important; } }
+/* === Cobalt editorial / IBM Plex system === */
+:root {
+  --ink:#001141;
+  --ink-mid:#001d6c;
+  --ink-soft:#343a3f;
+  --rule:rgba(0,29,108,.22);
+  --blue:#0f62fe;
+  --blue-dark:#001141;
+  --blue-light:#78a9ff;
+  --cyan:#0f62fe;
+  --teal:#001d6c;
+  --yellow:#0f62fe;
+  --red:#0f62fe;
+  --green:#0f62fe;
+}
+body { background:var(--paper); color:var(--ink); font-family:var(--plex); }
+.slide,.slide-dark { color:var(--ink); background-color:var(--paper); }
+.slide { background-image:linear-gradient(to right,rgba(31,43,224,.10) 1px,transparent 1px),linear-gradient(to bottom,rgba(31,43,224,.10) 1px,transparent 1px); background-size:64px 64px; }
+.canvas-grid,.slide-grid { display:none; }
+.slide::before,.slide::after { content:""; position:absolute; left:48px; right:48px; height:1.5px; z-index:8; pointer-events:none; background:var(--blue); }
+.slide::before { top:28px; }
+.slide::after { bottom:22px; }
+.masthead { border-color:var(--blue); color:var(--ink); }
+.slide-dark .masthead,.slide-dark .slide-no,.slide-dark .kicker,.slide-dark .subtitle,.slide-dark .footer,.slide-dark .label,.slide-dark .small-equation { color:var(--ink); border-color:var(--blue); }
+.title { font-family:var(--plex-display); font-size:78px; font-weight:600; line-height:1.04; letter-spacing:0; color:var(--blue); }
+.big-number { font-family:var(--mono); font-weight:500; line-height:.95; letter-spacing:0; color:var(--blue); }
+.title-lg { font-size:72px; line-height:1.02; }
+.slide-head { top:132px; }
+.kicker { margin-bottom:16px; }
+.subtitle { font-size:26px; line-height:1.4; }
+.reading-copy { max-width:1040px; margin:14px 0 0; color:var(--ink-mid); font:400 22px/1.42 var(--plex); }
+.slide-head[style*="width:1240px"] .title-lg { max-width:1120px; font-size:64px; line-height:1.04; }
+.slide-head[style*="width:1240px"] .subtitle { max-width:1040px; margin-top:18px; font-size:26px; }
+.kicker,.step-num,.slide-no,.masthead,.footer,.metric-label,.metric-value,.tag { font-family:var(--mono); letter-spacing:0; }
+.kicker,.slide-no,.step-num { color:var(--blue); }
+.slide-dark .kicker,.slide-dark .slide-no,.slide-dark .step-num { color:var(--blue); }
+.slide-dark .footer { border-color:var(--rule); }
+.slide-dark .stat { border-color:var(--blue); }
+.slide-dark .stat strong,.slide-dark .stat span { color:var(--ink); }
+.slide-dark .callout { color:var(--ink); border:0; border-top:1.5px solid var(--blue); background:transparent; }
+.slide-dark .table th,.slide-dark .table td { color:var(--ink); border-color:var(--rule); }
+.slide-dark .table th { color:var(--ink-mid); }
+.slide-dark .equation { color:var(--ink); border-color:var(--blue); }
+.slide-dark .tag { color:var(--blue); }
+.network-svg { height:440px; }
+.network-svg .edge { stroke:rgba(0,29,108,.24); }
+.network-svg .edge.cut { stroke:var(--blue); }
+.network-svg .node-a { fill:var(--blue); stroke:var(--paper); }
+.network-svg .node-b { fill:var(--blue-dark); stroke:var(--paper); }
+.network-svg .node-label,.slide-dark .network-svg .node-label { fill:var(--ink); }
+.network-svg .group-label { fill:var(--blue-dark); }
+.track { background:rgba(0,29,108,.12); }
+.metric-classic .track > i { background:rgba(0,29,108,.42); }
+.metric-noise .track > i { background:rgba(15,98,254,.62); }
+.callout { color:var(--ink); border:0; border-top:1.5px solid var(--blue); background:transparent; }
+.circuit-stage { background:rgba(15,98,254,.045); }
+.circuit-stage.cost,.circuit-stage.mixer { border-color:var(--blue); background:rgba(15,98,254,.07); }
+.cost .wire::after,.mixer .wire::after { border-radius:0; background:var(--blue); }
+.demo-link { color:#fff; background:var(--blue); }
+.demo-link:hover { color:#fff; background:var(--blue-dark); }
+.deck-controls { color:#fff; background:var(--blue-dark); border-color:var(--blue); border-radius:0; box-shadow:none; }
+.deck-controls button { color:#fff; border-color:rgba(255,255,255,.45); border-radius:0; }
+.deck-controls button:hover { background:var(--blue); border-color:var(--blue); }
+.notes-panel { color:var(--ink); background:var(--paper); border:1.5px solid var(--blue); box-shadow:none; }
+.notes-head,.notes-head button { color:var(--ink); border-color:var(--blue); }
+.notes-head button { background:transparent; border-style:solid; }
+.deck-controls { display:none!important; }
+.masthead > .slide-no { display:none; }
+.footer { align-items:center; }
+.footer span:last-child { color:var(--blue); font:500 16px var(--mono); text-align:right; }
+.slide-head[style*="width:1240px"] { right:auto; }
+.slide-body { overflow:visible; }
+.slide[data-title="The test network"] .network-svg { height:440px; }
+.slide[data-title="One circuit is small"] .cols-2 { height:calc(100% - 115px); }
+.slide[data-title="What the evidence cannot claim"] .cols-2 { height:calc(100% - 80px); }
+.slide[data-title="The objective"] .equation,.slide[data-title="Ising encoding"] .equation { font-size:27px; line-height:1.55; }
+</style>
+</head>
+<body>
+<div class="deck-viewport">
+<main class="deck-stage" id="deckStage">
+<!-- Slide 1: opening question and project identity -->
+<section class="slide active visible" data-title="Title">
+<div class="canvas-grid"></div><header class="masthead"><span class="mast-mark"><i class="mark-block"></i> COEP TECHNOLOGICAL UNIVERSITY</span><span>GROUP 03 · QUANTUM PROJECT</span></header>
+<div class="slide-head" style="top:205px;left:112px;width:1240px">
+<p class="kicker reveal" data-editable="deck-kicker">MAX-CUT / SOCIAL NETWORKS</p>
+<h1 class="title title-lg reveal" data-editable="deck-title">A Scalable Hybrid Quantum-Classical QAOA Framework for Max-Cut-Based Community Detection in Large-Scale Social Networks</h1>
+<p class="subtitle reveal" data-editable="deck-subtitle">From a verified 16-user instance to fixed-qubit graph decomposition.</p>
+<p class="reading-copy reveal">We verify the small circuit against an exact optimum, then evaluate a simulator-based block method on synthetic networks up to 20,000 users.</p>
+</div>
+<div class="slide-body" style="top:760px;bottom:auto">
+<div class="stat-grid reveal"><div class="stat"><strong>44</strong><span>verified exact cut</span></div><div class="stat"><strong>20k</strong><span>synthetic users tested</span></div><div class="stat"><strong>12</strong><span>maximum qubits per block</span></div></div>
+</div>
+<footer class="footer"><span data-editable="deck-authors">Rohit Rao · Viraj Nalbalwar · Shreesh Kolhatkar · Om Shingare</span><span class="slide-no">01</span></footer>
+<template class="speaker-notes">Introduce the problem in plain terms: split a weighted social network into two groups to maximize the interactions crossing between them. Set expectations clearly: the small graph is validated exactly; the large-graph solver is a block-coordinate simulation, and no quantum advantage or physical-device result is claimed.</template>
+</section>
+
+<!-- Slide 2: narrative roadmap -->
+<section class="slide slide-dark" data-title="The question">
+<div class="slide-grid"></div><header class="masthead"><span>THE QUESTION</span><span class="slide-no">02</span></header>
+<div class="slide-head"><p class="kicker reveal">A GRAPH IS A RECORD OF RELATIONSHIPS</p><h2 class="title reveal">What can a cut<br>tell us about a network?</h2><p class="subtitle reveal">One edge at a time: formulate, solve, test, and scale honestly.</p></div>
+<div class="slide-body" style="top:625px;bottom:130px"><div class="flow">
+<div class="flow-step reveal"><span class="step-num">01 / FORMULATE</span><h3>People become nodes</h3><p>Connections carry interaction weights.</p></div><span class="flow-arrow reveal">›</span>
+<div class="flow-step reveal"><span class="step-num">02 / ENCODE</span><h3>Cut becomes energy</h3><p>An Ising cost Hamiltonian scores each split.</p></div><span class="flow-arrow reveal">›</span>
+<div class="flow-step reveal"><span class="step-num">03 / OPTIMIZE</span><h3>Quantum + classical</h3><p>QAOA samples; COBYLA tunes its angles.</p></div><span class="flow-arrow reveal">›</span>
+<div class="flow-step reveal"><span class="step-num">04 / EVALUATE</span><h3>Compare and scale</h3><p>Exact optima, classical baselines, block tests.</p></div>
+</div></div>
+<footer class="footer"><span>Think clearly. Guide the audience. Show the evidence.</span><span>02</span></footer>
+<template class="speaker-notes">Use this as the map for the talk. Let the audience know a live demo will appear after the algorithm and evidence sections. Reiterate that community detection here is operationally defined as a two-way cut, not the conventional assortative notion of dense within-group connections.</template>
+</section>
+
+<!-- Slide 3: accessible analogy -->
+<section class="slide" data-title="The party analogy">
+<div class="canvas-grid"></div><header class="masthead"><span>THE IDEA, WITHOUT THE MATH</span><span class="slide-no">03</span></header>
+<div class="slide-head"><p class="kicker reveal">IMAGINE A ROOM FULL OF PEOPLE</p><h2 class="title reveal">Two groups. Many ties.<br>One question.</h2></div>
+<div class="slide-body" style="top:430px;bottom:150px"><div class="cols-2">
+<div class="callout reveal"><strong>Max-Cut asks:</strong><br>Can we put people on opposite sides so the total strength of the connections crossing the line is as large as possible?<br><br>Within-group ties do not increase this objective; only crossing edge weights count.</div>
+<svg viewBox="0 0 720 430" role="img" aria-label="People divided into two groups with crossing relationships" style="width:100%;height:100%">
+<g fill="none" stroke="#a8a8a8" stroke-width="4"><line x1="130" y1="90" x2="300" y2="170"/><line x1="130" y1="250" x2="300" y2="170"/><line x1="300" y1="170" x2="300" y2="340"/><line x1="130" y1="90" x2="560" y2="110"/><line x1="130" y1="250" x2="560" y2="270"/></g>
+<g fill="none" stroke="#f1c21b" stroke-width="7"><line x1="130" y1="90" x2="560" y2="110"/><line x1="130" y1="250" x2="560" y2="270"/></g>
+<g fill="#0f62fe" stroke="#fff" stroke-width="4"><circle cx="130" cy="90" r="28"/><circle cx="130" cy="250" r="28"/><circle cx="300" cy="170" r="28"/><circle cx="300" cy="340" r="28"/></g><g fill="#009d9a" stroke="#fff" stroke-width="4"><circle cx="560" cy="110" r="28"/><circle cx="560" cy="270" r="28"/></g>
+<text x="145" y="410" font-size="18" fill="#0f62fe">GROUP A</text><text x="500" y="410" font-size="18" fill="#009d9a">GROUP B</text><text x="370" y="86" font-size="16" fill="#8a6800">crossing ties count toward the cut</text>
+</svg></div></div>
+<footer class="footer"><span>Thicker ties represent greater interaction weight.</span><span>03</span></footer>
+<template class="speaker-notes">An analogy: picture arranging guests at two tables. Max-Cut rewards ties that cross between the tables, weighted by interaction strength. This differs from ordinary community detection, which often groups tightly connected users together.</template>
+</section>
+
+<!-- Slide 4: scope and meaning -->
+<section class="slide slide-dark" data-title="Scope">
+<div class="slide-grid"></div><header class="masthead"><span>WHAT THIS OBJECTIVE MEANS</span><span class="slide-no">04</span></header>
+<div class="slide-head"><p class="kicker reveal">BE PRECISE ABOUT THE CLAIM</p><h2 class="title reveal">Max-Cut partitions<br>cross-group traffic.</h2><p class="subtitle reveal">It does not automatically recover conventional, densely knit communities.</p></div>
+<div class="slide-body" style="top:620px;bottom:160px"><div class="cols-2">
+<div class="callout reveal"><strong>Optimized here</strong><br>Total weight of edges whose endpoints land in different groups.</div>
+<div class="callout reveal"><strong>Not optimized here</strong><br>Modularity, dense within-group links, or a real social-media community label.</div>
+</div></div>
+<footer class="footer"><span>This distinction bounds the interpretation of every result that follows.</span><span>04</span></footer>
+<template class="speaker-notes">State this clearly if asked by the guide. Max-Cut can be useful for studying cross-boundary interaction or influence, but it is not interchangeable with modularity-based community detection. The primary graph is hand-built, and the scale graphs are synthetic.</template>
+</section>
+
+<!-- Slide 5: graph data -->
+<section class="slide" data-title="The test network">
+<div class="canvas-grid"></div><header class="masthead"><span>THE PRIMARY INSTANCE</span><span class="slide-no">05</span></header>
+<div class="slide-head"><p class="kicker reveal">A SMALL GRAPH, EXHAUSTIVELY CHECKABLE</p><h2 class="title reveal">16 users. 26 weighted ties.</h2><p class="subtitle reveal">The weights encode three levels of interaction strength.</p></div>
+<div class="slide-body" style="top:435px;bottom:145px"><div class="cols-wide">
+<div><svg id="network16" class="network-svg" viewBox="0 0 780 600" role="img" aria-label="The paper's 16-user weighted network, split into two groups"><g id="networkEdges"></g><g id="networkNodes"></g></svg></div>
+<div><div class="stat-grid" style="grid-template-columns:1fr;gap:24px;margin-top:0"><div class="stat reveal"><strong>1–3</strong><span>interaction weight</span></div><div class="stat reveal"><strong>52</strong><span>total edge weight</span></div><div class="stat reveal"><strong>2–5</strong><span>node degree range</span></div></div><p class="callout reveal" style="margin-top:36px">A hand-constructed validation graph—not a sample from Instagram or another platform.</p></div>
+</div></div>
+<footer class="footer"><span>Node names and edges come from network.txt.</span><span>05</span></footer>
+<template class="speaker-notes">This graph is the exact 16-node/26-edge file used in the paper and notebook. It is hand constructed, with interaction weights 1–3 and degrees 2–5; it is not statistically representative social-media data. The highlighted partition is one saved optimal QAOA sample.</template>
+</section>
+
+<!-- Slide 6: objective -->
+<section class="slide" data-title="The objective">
+<div class="canvas-grid"></div><header class="masthead"><span>FORMULATION</span><span class="slide-no">06</span></header>
+<div class="slide-head"><p class="kicker reveal">MAX-CUT IN ONE LINE</p><h2 class="title reveal">Reward every tie that crosses.</h2></div>
+<div class="slide-body" style="top:430px;bottom:160px"><div class="cols-2">
+<div><div class="equation reveal">C(z) = Σ<sub>(i,j)∈E</sub> w<sub>ij</sub> · 1[z<sub>i</sub> ≠ z<sub>j</sub>]</div><p class="subtitle reveal" style="font-size:24px">Each user receives a binary assignment: 0 for A, 1 for B. An edge contributes its weight only when its endpoints differ.</p></div>
+<div class="callout reveal"><strong>For this network</strong><br>Maximize the sum of interaction weights crossing the partition.<br><br><span class="tag">Weighted undirected graph</span></div>
+</div></div>
+<footer class="footer"><span>Equation (1) in the research paper.</span><span>06</span></footer>
+<template class="speaker-notes">Read the expression left to right. E is the edge set; w_ij is the weight on edge i,j; the indicator is one when assignments differ. The maximum objective is NP-hard. The 16-node case remains small enough for brute-force verification.</template>
+</section>
+
+<!-- Slide 7: exact optimum -->
+<section class="slide slide-dark" data-title="Ground truth">
+<div class="slide-grid"></div><header class="masthead"><span>EXACT VALIDATION</span><span class="slide-no">07</span></header>
+<div class="slide-head"><p class="kicker reveal">SMALL ENOUGH TO KNOW THE ANSWER</p><h2 class="title reveal">Brute force gives us<br>a trustworthy reference.</h2></div>
+<div class="slide-body" style="top:600px;bottom:170px"><div class="cols-3">
+<div class="reveal"><div class="big-number">65,536</div><p class="label">possible bitstrings: 2<sup>16</sup></p></div>
+<div class="reveal"><div class="big-number">44</div><p class="label">maximum cut value</p></div>
+<div class="reveal"><div class="big-number">26</div><p class="label">mean cut of a random partition</p></div>
+</div><p class="callout reveal" style="margin-top:44px">Scoring every assignment gives an exact reference for the QAOA result. This exhaustive search validates the 16-node experiment; it is not a large-network algorithm.</p></div>
+<footer class="footer"><span>Six optimal bitstrings represent three partitions and their label-swapped complements.</span><span>07</span></footer>
+<template class="speaker-notes">The optimum is 44, obtained by scoring all 65,536 assignments. There are six optimal bit patterns because each of the three underlying partitions has a complement with the same cut. It takes milliseconds on this machine, not ten hours as an earlier draft said.</template>
+</section>
+
+<!-- Slide 8: Ising encoding -->
+<section class="slide" data-title="Ising encoding">
+<div class="canvas-grid"></div><header class="masthead"><span>QUANTUM REPRESENTATION</span><span class="slide-no">08</span></header>
+<div class="slide-head"><p class="kicker reveal">FROM BITS TO SPINS</p><h2 class="title reveal">The cut becomes an energy landscape.</h2></div>
+<div class="slide-body" style="top:410px;bottom:140px"><div class="cols-2">
+<div><div class="equation reveal">H<sub>C</sub> = Σ<sub>(i,j)∈E</sub> (w<sub>ij</sub>/2)(I − Z<sub>i</sub>Z<sub>j</sub>)</div><p class="small-equation reveal" style="margin-top:30px">z<sub>i</sub> = (1 − Z<sub>i</sub>)/2</p><p class="reading-copy reveal">Opposite spins make Z<sub>i</sub>Z<sub>j</sub> = −1, so the edge contributes its full weight; matching spins contribute zero.</p></div>
+<div class="callout reveal"><strong>What changes?</strong><br>A computational-basis state encodes a partition. Its cost-Hamiltonian eigenvalue equals that partition’s weighted cut.<br><br><span class="tag">One qubit per node</span></div>
+</div></div>
+<footer class="footer"><span>The identity term is constant across assignments.</span><span>08</span></footer>
+<template class="speaker-notes">The full Hamiltonian is a sum over graph edges. On a measured bitstring, Z_iZ_j equals -1 exactly when the two bits differ, so that edge contributes w_ij. The effective Hamiltonian differs by a constant and has the same maximizing state.</template>
+</section>
+
+<!-- Slide 9: QAOA circuit -->
+<section class="slide slide-dark" data-title="Circuit layers">
+<div class="slide-grid"></div><header class="masthead"><span>QAOA CIRCUIT</span><span class="slide-no">09</span></header>
+<div class="slide-head"><p class="kicker reveal">ALTERNATE COST AND MIXER</p><h2 class="title reveal">Two kinds of rotation.<br>Repeat p times.</h2></div>
+<div class="slide-body" style="top:430px;bottom:175px"><div class="circuit reveal">
+<div class="circuit-stage"><h3>START</h3><p class="small-equation">|+⟩<sup>⊗n</sup></p><p class="label">Hadamard on each qubit</p></div>
+<div class="circuit-stage cost"><h3>COST / γ<sub>k</sub></h3><p class="small-equation">RZZ(−γ<sub>k</sub>w<sub>ij</sub>)</p><p class="label">one per graph edge</p><div class="wires"><i class="wire"></i><i class="wire"></i><i class="wire"></i><i class="wire"></i></div></div>
+<div class="circuit-stage mixer"><h3>MIXER / β<sub>k</sub></h3><p class="small-equation">RX(2β<sub>k</sub>)</p><p class="label">one per qubit</p><div class="wires"><i class="wire"></i><i class="wire"></i><i class="wire"></i><i class="wire"></i></div></div>
+<div class="circuit-stage"><h3>MEASURE</h3><p class="small-equation">0 / 1</p><p class="label">sample assignments</p></div>
+</div><div class="callout reveal" style="margin-top:28px">Depth p means p cost layers + p mixer layers. More depth also means more two-qubit gates and more exposure to noise.</div></div>
+<footer class="footer"><span>For the primary graph, p=2 means 52 RZZ gates before routing.</span><span>09</span></footer>
+<template class="speaker-notes">Explain the order used by the code: H on every qubit; for each layer, RZZ(-gamma times edge weight) on every edge, then RX(2 beta) on each qubit; finally measure. Qiskit prints qubit 0 at the rightmost bit, so the count string is reversed before scoring.</template>
+</section>
+
+<!-- Slide 10: hybrid optimization -->
+<section class="slide" data-title="Hybrid loop">
+<div class="canvas-grid"></div><header class="masthead"><span>THE HYBRID LOOP</span><span class="slide-no">10</span></header>
+<div class="slide-head"><p class="kicker reveal">QUANTUM SAMPLES · CLASSICAL STEERING</p><h2 class="title reveal">The optimizer learns<br>which angles to try.</h2></div>
+<div class="slide-body" style="top:465px;bottom:155px"><div class="flow">
+<div class="flow-step reveal"><span class="step-num">01</span><h3>Choose γ, β</h3><p>Seeded starting angles.</p></div><span class="flow-arrow">→</span>
+<div class="flow-step reveal"><span class="step-num">02</span><h3>Run circuit</h3><p>Sample 2,048 outcomes.</p></div><span class="flow-arrow">→</span>
+<div class="flow-step reveal"><span class="step-num">03</span><h3>Score cuts</h3><p>Estimate expected cut.</p></div><span class="flow-arrow">→</span>
+<div class="flow-step reveal"><span class="step-num">04</span><h3>COBYLA updates</h3><p>Search without gradients.</p></div>
+</div><div class="equation reveal" style="margin-top:30px;font-size:30px">f(γ,β) = −⟨C⟩</div><p class="reading-copy reveal">Five seeded starts reduce dependence on initialization; the retained run is ranked by its exact expected cut.</p></div>
+<footer class="footer"><span>Primary runs: 5 starts; retain the start with the best exact expected cut.</span><span>10</span></footer>
+<template class="speaker-notes">The main experiments call a NumPy statevector for exact probabilities, then estimate the optimizer objective by multinomial shot sampling. After five starts, the best start is chosen by its exact expected cut. COBYLA can stop before the 300-evaluation cap.</template>
+</section>
+
+<!-- Slide 11: circuit scale -->
+<section class="slide" data-title="One circuit is small">
+<div class="canvas-grid"></div><header class="masthead"><span>WHY NOT ONE HUGE CIRCUIT?</span><span class="slide-no">11</span></header>
+<div class="slide-head"><p class="kicker reveal">A HARDWARE AND SIMULATION LIMIT</p><h2 class="title reveal">One node costs one qubit.</h2></div>
+<div class="slide-body" style="top:425px;bottom:145px"><div class="cols-2">
+<div class="equation reveal">M(n) = 16 × 2<sup>n</sup> bytes</div>
+<div><div class="stat-grid" style="grid-template-columns:1fr 1fr;margin-top:0"><div class="stat reveal"><strong>16</strong><span>qubits in primary test</span></div><div class="stat reveal"><strong>~1 MB</strong><span>statevector memory</span></div><div class="stat reveal"><strong>32</strong><span>qubits near workstation limit</span></div><div class="stat reveal"><strong>~68 GB</strong><span>statevector at 32 qubits</span></div></div></div>
+</div><p class="callout reveal" style="margin-top:30px">That is why 16 nodes is a validation instance—not the proposed size of an Instagram-scale circuit.</p></div>
+<footer class="footer"><span>Memory estimate for complex double-precision state amplitudes.</span><span>11</span></footer>
+<template class="speaker-notes">A statevector stores 2^n complex amplitudes at 16 bytes each. Exact simulation doubles in memory each time a qubit is added. The single-circuit approach cannot simply be scaled to millions of qubits; the block method is a decomposition experiment, not a magic hardware claim.</template>
+</section>
+
+<!-- Slide 12: corrected implementation -->
+<section class="slide slide-dark" data-title="Correctness checks">
+<div class="slide-grid"></div><header class="masthead"><span>IMPLEMENTATION CHECKS</span><span class="slide-no">12</span></header>
+<div class="slide-head"><p class="kicker reveal">MAKE THE CIRCUIT AND SCORING AGREE</p><h2 class="title reveal">Three bugs mattered.</h2></div>
+<div class="slide-body" style="top:450px;bottom:150px">
+<table class="table"><thead><tr><th>Issue</th><th>Correction</th><th>Why it matters</th></tr></thead><tbody>
+<tr class="reveal"><td>Qiskit bit order</td><td>Reverse count keys</td><td>Qubit 0 is rightmost</td></tr>
+<tr class="reveal"><td>Cost-gate angle</td><td>RZZ(−γw)</td><td>Matches e<sup>−iγH<sub>C</sub></sup></td></tr>
+<tr class="reveal"><td>Parameter ordering</td><td>Bind by name</td><td>Qiskit sorts beta before gamma</td></tr>
+</tbody></table>
+<p class="callout reveal" style="margin-top:35px">NumPy statevector probabilities match Qiskit to a maximum absolute error of 3.1 × 10<sup>−18</sup>.</p>
+</div>
+<footer class="footer"><span>Corrections are retained in the legacy-code audit notes.</span><span>12</span></footer>
+<template class="speaker-notes">These were verified against the old script. Qiskit displays bit zero on the right; the previous code read left to right. The previous cost angle and gamma/beta binding were also wrong. The new engine cross-checks its probability vector against Qiskit's own Statevector.</template>
+</section>
+
+<!-- Slide 13: experiment setup -->
+<section class="slide" data-title="Experiment setup">
+<div class="canvas-grid"></div><header class="masthead"><span>EXPERIMENTAL SETUP</span><span class="slide-no">13</span></header>
+<div class="slide-head"><p class="kicker reveal">REPRODUCIBLE SMALL-INSTANCE TEST</p><h2 class="title reveal">Controlled settings.<br>Known ground truth.</h2></div>
+<div class="slide-body" style="top:440px;bottom:140px"><div class="cols-2">
+<div class="stat-grid" style="grid-template-columns:1fr 1fr;margin-top:0"><div class="stat reveal"><strong>p = 1, 2, 3</strong><span>circuit depths</span></div><div class="stat reveal"><strong>2,048</strong><span>shots per primary evaluation</span></div><div class="stat reveal"><strong>5</strong><span>random starts per depth</span></div><div class="stat reveal"><strong>42</strong><span>reproducible seed</span></div></div>
+<div class="callout reveal"><strong>Compute stack</strong><br>Python 3.14.8<br>Qiskit 2.6.0<br>Qiskit-Aer 0.18.0<br>CPU simulation<br><br>COBYLA cap: 300 evaluations</div>
+</div></div>
+<footer class="footer"><span>Primary graph: 16 nodes, 26 edges, weights 1–3.</span><span>13</span></footer>
+<template class="speaker-notes">Block tests use p=2, at most 12 qubits, three sweeps, exact statevector expectations, 1,024 samples to select a candidate and a 60-evaluation cap (40 for the 20,000-node run). The primary test and block solver have different optimization paths.</template>
+</section>
+
+<!-- Slide 14: primary QAOA results -->
+<section class="slide" data-title="Primary QAOA results">
+<div class="canvas-grid"></div><header class="masthead"><span>PRIMARY QAOA RESULTS</span><span class="slide-no">14</span></header>
+<div class="slide-head"><p class="kicker reveal">STATE QUALITY IS NOT THE BEST SAMPLE</p><h2 class="title reveal">Good cuts became more likely.</h2></div>
+<div class="slide-body" style="top:430px;bottom:140px"><table class="table reveal"><thead><tr><th>Depth</th><th>COBYLA evaluations</th><th>Expected cut / optimum</th><th>P(optimal)</th><th>Best of 2,048 shots</th></tr></thead><tbody>
+<tr><td>p = 1</td><td class="num">36</td><td class="num accent">79.9%</td><td class="num">1.07%</td><td class="num">44</td></tr>
+<tr><td>p = 2</td><td class="num">53</td><td class="num accent">79.6%</td><td class="num">1.00%</td><td class="num">44</td></tr>
+<tr><td>p = 3</td><td class="num">67</td><td class="num accent">84.7%</td><td class="num">2.80%</td><td class="num">44</td></tr>
+</tbody></table>
+<div class="cols-3" style="margin-top:50px"><div class="callout reveal">Best of 5 seeded restarts.</div><div class="callout reveal">Uniform chance of an optimum: 6 / 65,536.</div><div class="callout reveal">QAOA probability enrichment: 109×–306×.</div></div>
+</div>
+<footer class="footer"><span>Expected-cut and optimal-state probability are exact-state metrics.</span><span>14</span></footer>
+<template class="speaker-notes">The trained state is evaluated using exact statevector probabilities. At p=2 the state expectation is about 35.0/44 = 79.6%; its probability of an optimal outcome is 1.001%. The best of 2,048 shots is 44. The p=3 enrichment rounds to 306×; the table uses 305× in the paper based on stored precision.</template>
+</section>
+
+<!-- Slide 15: seed stability -->
+<section class="slide slide-dark" data-title="Stability across starts">
+<div class="slide-grid"></div><header class="masthead"><span>REPEATABILITY CHECK</span><span class="slide-no">15</span></header>
+<div class="slide-head"><p class="kicker reveal">ONE GOOD RUN IS NOT A GUARANTEE</p><h2 class="title reveal">Depth gains are smaller<br>than start-to-start spread.</h2></div>
+<div class="slide-body" style="top:490px;bottom:145px"><table class="table reveal"><thead><tr><th>Depth</th><th>Mean expected ratio</th><th>Standard deviation</th><th>Mean best-of-shots</th><th>Worst best-of-shots</th></tr></thead><tbody>
+<tr><td>p = 1</td><td class="num">70.4%</td><td class="num">10.0 points</td><td class="num">43.5</td><td class="num">42</td></tr>
+<tr><td>p = 2</td><td class="num">71.0%</td><td class="num">10.1 points</td><td class="num">43.2</td><td class="num">41</td></tr>
+<tr><td>p = 3</td><td class="num">72.3%</td><td class="num">8.7 points</td><td class="num">43.6</td><td class="num">42</td></tr>
+</tbody></table><p class="callout reveal" style="margin-top:38px">Ten seeds, one restart each. The depth differences are not statistically separated by this experiment.</p></div>
+<footer class="footer"><span>One restart per seed; 2,048 shot samples at each evaluation.</span><span>15</span></footer>
+<template class="speaker-notes">The best-of-five main results are not representative of every start. Over ten single-restart seeds, expected ratios were 0.704±0.100, 0.710±0.101, and 0.723±0.087. Don’t claim monotonic improvement or statistical significance from these values.</template>
+</section>
+
+<!-- Slide 16: sampling control -->
+<section class="slide" data-title="Sampling is a control">
+<div class="canvas-grid"></div><header class="masthead"><span>THE SMALL-GRAPH TRAP</span><span class="slide-no">16</span></header>
+<div class="slide-head"><p class="kicker reveal">WHY BEST-OF-SHOTS CAN MISLEAD</p><h2 class="title reveal">Random guessing already<br>gets surprisingly close.</h2></div>
+<div class="slide-body" style="top:445px;bottom:150px"><div class="cols-2">
+<div><div class="big-number reveal">42.4</div><p class="subtitle reveal" style="font-size:24px">mean best cut from 2,048 random partitions, averaged over 500 trials</p><div class="rule reveal" style="margin-top:30px"></div><p class="small-equation reveal" style="margin-top:20px">14.2% of random trials hit 44.</p></div>
+<div class="callout reveal"><strong>Therefore</strong><br>A sampled optimum alone is not proof that QAOA’s distribution is better. Report expected cut, P(optimal), and a random-sampling control.</div>
+</div></div>
+<footer class="footer"><span>Random partition mean: 26.0 / 44 = 59.1%.</span><span>16</span></footer>
+<template class="speaker-notes">This is a key defense question. Uniformly sampling 2,048 states on the small 16-qubit graph yields an optimal cut in 14.2% of 500 trials, and the best sample averages 42.4. Thus the strongest claim is probability concentration in the trained state, not a best-of-shots advantage.</template>
+</section>
+
+<!-- Slide 17: classical baselines -->
+<section class="slide" data-title="Classical baselines">
+<div class="canvas-grid"></div><header class="masthead"><span>COMPARISON</span><span class="slide-no">17</span></header>
+<div class="slide-head"><p class="kicker reveal">SAME GRAPH · SAME EXACT OPTIMUM</p><h2 class="title reveal">Classical methods are competitive.</h2></div>
+<div class="slide-body" style="top:425px;bottom:125px"><div class="cols-2">
+<div>
+<div class="metric-row metric-classic reveal"><span class="metric-label">Random mean</span><div class="track"><i style="--value:59.1%"></i></div><span class="metric-value">26.0</span></div>
+<div class="metric-row metric-classic reveal"><span class="metric-label">Louvain → 2-way</span><div class="track"><i style="--value:22.7%"></i></div><span class="metric-value">10.0</span></div>
+<div class="metric-row metric-classic reveal"><span class="metric-label">Spectral</span><div class="track"><i style="--value:88.6%"></i></div><span class="metric-value">39.0</span></div>
+<div class="metric-row metric-classic reveal"><span class="metric-label">GW mean ×20</span><div class="track"><i style="--value:95.3%"></i></div><span class="metric-value">41.95</span></div>
+<div class="metric-row metric-qaoa reveal"><span class="metric-label">Greedy 10 starts</span><div class="track"><i style="--value:100%"></i></div><span class="metric-value">44.0</span></div>
+<div class="metric-row metric-qaoa reveal"><span class="metric-label">QAOA best sample</span><div class="track"><i style="--value:100%"></i></div><span class="metric-value">44.0</span></div>
+</div>
+<div><div class="big-number reveal">44</div><p class="subtitle reveal" style="font-size:24px">also reached by greedy 1-flip and best-of-20 Goemans–Williamson rounding</p><p class="callout reveal" style="margin-top:40px">Louvain maximizes modularity, not Max-Cut; the merged two-group score is not a fair Max-Cut baseline.</p></div>
+</div></div>
+<footer class="footer"><span>Goemans–Williamson SDP upper bound: 45.78.</span><span>17</span></footer>
+<template class="speaker-notes">On the primary graph, greedy 1-flip with ten starts and the best of twenty Goemans-Williamson hyperplane roundings both achieve the exact optimum. Spectral gets 39. Louvain communities merged into two groups score 10 because modularity rewards within-community density, which conflicts with maximizing crossing edges.</template>
+</section>
+
+<!-- Slide 18: simulated noise -->
+<section class="slide slide-dark" data-title="Noise">
+<div class="slide-grid"></div><header class="masthead"><span>HARDWARE NOISE MODEL</span><span class="slide-no">18</span></header>
+<div class="slide-head"><p class="kicker reveal">SIMULATION, NOT A REAL DEVICE RUN</p><h2 class="title reveal">Deeper circuits pay<br>a higher noise cost.</h2></div>
+<div class="slide-body" style="top:470px;bottom:145px"><div class="cols-2">
+<div>
+<div class="metric-row reveal"><span class="metric-label">p=1 ideal</span><div class="track"><i style="--value:79.9%"></i></div><span class="metric-value">79.9%</span></div>
+<div class="metric-row metric-noise reveal"><span class="metric-label">p=1 noisy</span><div class="track"><i style="--value:74.3%"></i></div><span class="metric-value">74.3%</span></div>
+<div class="metric-row reveal"><span class="metric-label">p=2 ideal</span><div class="track"><i style="--value:79.6%"></i></div><span class="metric-value">79.6%</span></div>
+<div class="metric-row metric-noise reveal"><span class="metric-label">p=2 noisy</span><div class="track"><i style="--value:68.2%"></i></div><span class="metric-value">68.2%</span></div>
+</div>
+<div class="callout reveal"><strong>FakeSherbrooke in Qiskit Aer</strong><br>Calibration-derived gate and readout noise; transpiled to device topology.<br><br>p=1: 127 two-qubit gates<br>p=2: 251 two-qubit gates<br><br><span class="tag">No physical hardware result claimed</span></div>
+</div></div>
+<footer class="footer"><span>One best noisy sample still reached 44; expected value is the stronger noise metric.</span><span>18</span></footer>
+<template class="speaker-notes">This uses Qiskit’s FakeSherbrooke calibration model in Aer, not an IBM chip. Expected-cut ratio falls from 0.799 to 0.743 at p=1 and 0.796 to 0.682 at p=2. The one observed best sample reaching 44 does not erase the expectation decline.</template>
+</section>
+
+<!-- Slide 19: block rationale -->
+<section class="slide" data-title="From one graph to blocks">
+<div class="canvas-grid"></div><header class="masthead"><span>SCALABILITY STRATEGY</span><span class="slide-no">19</span></header>
+<div class="slide-head"><p class="kicker reveal">NEVER ONE MILLION-QUBIT CIRCUIT</p><h2 class="title reveal">Hold the rest fixed.<br>Optimize a local block.</h2></div>
+<div class="slide-body" style="top:455px;bottom:140px"><div class="flow">
+<div class="flow-step reveal"><span class="step-num">GRAPH</span><h3>Current split</h3><p>Every node has 0 or 1.</p></div><span class="flow-arrow">→</span>
+<div class="flow-step reveal"><span class="step-num">LOCAL SUBPROBLEM</span><h3>Choose ≤12 nodes</h3><p>Boundary neighbors become fixed fields.</p></div><span class="flow-arrow">→</span>
+<div class="flow-step reveal"><span class="step-num">QAOA</span><h3>Train exactly</h3><p>Statevector expectation for the block.</p></div><span class="flow-arrow">→</span>
+<div class="flow-step reveal"><span class="step-num">ACCEPT</span><h3>Sample 1,024</h3><p>Keep a block update only if cut improves.</p></div>
+</div><div class="callout reveal" style="margin-top:24px">The global cut cannot decrease on an accepted block update. Random breadth-first blocks are redrawn each sweep; boundary edges may become internal later.</div></div>
+<footer class="footer"><span>Block training uses exact expectations; samples select the update.</span><span>19</span></footer>
+<template class="speaker-notes">For each block, we include internal edges and boundary edges to fixed outside node assignments. Boundary terms become single-qubit Z fields. We optimize exact statevector expectation once per block, sample 1,024 assignments, and accept only a better local assignment. This ensures the total cut is non-decreasing after each accepted update.</template>
+</section>
+
+<!-- Slide 20: scalable results -->
+<section class="slide" data-title="Scale experiments">
+<div class="canvas-grid"></div><header class="masthead"><span>SYNTHETIC SCALE-FREE GRAPHS</span><span class="slide-no">20</span></header>
+<div class="slide-head"><p class="kicker reveal">3 SWEEPS · p=2 · AT MOST 12 QUBITS</p><h2 class="title reveal">Block-QAOA tracks a light greedy baseline.</h2></div>
+<div class="slide-body" style="top:435px;bottom:125px">
+<table class="table reveal"><thead><tr><th>Nodes</th><th>Block-QAOA cut</th><th>Greedy 1-flip</th><th>Spectral</th><th>Runtime (s)</th></tr></thead><tbody>
+<tr><td class="num">100</td><td class="num accent">464</td><td class="num">457</td><td class="num">394</td><td class="num">1.9</td></tr>
+<tr><td class="num">300</td><td class="num accent">1,365</td><td class="num">1,329</td><td class="num">1,153</td><td class="num">5.2</td></tr>
+<tr><td class="num">1,000</td><td class="num accent">4,488</td><td class="num">4,462</td><td class="num">3,855</td><td class="num">15.5</td></tr>
+<tr><td class="num">3,000</td><td class="num accent">13,811</td><td class="num">13,562</td><td class="num">12,235</td><td class="num">48.3</td></tr>
+</tbody></table>
+<div class="callout reveal" style="margin-top:28px">Barabási–Albert synthetic graphs, edge weights 1–3. The greedy baseline uses only 3 starts; at 100 nodes, Goemans–Williamson reaches 468, so Block-QAOA does not lead every comparison.</div>
+</div>
+<footer class="footer"><span>At 100 nodes, GW best rounding was 468; SDP bound was 500.1.</span><span>20</span></footer>
+<template class="speaker-notes">The block solver modestly beats the three-start greedy baseline at 300 to 3,000 nodes, but it is much slower. At 100 nodes GW does better. These are simulation measurements on synthetic graphs, not real Instagram data and not physical quantum runs.</template>
+</section>
+
+<!-- Slide 21: 20,000 and extrapolation -->
+<section class="slide slide-dark" data-title="20,000 users and beyond">
+<div class="slide-grid"></div><header class="masthead"><span>MEASURED VS PROJECTED</span><span class="slide-no">21</span></header>
+<div class="slide-head"><p class="kicker reveal">KEEP EVIDENCE AND EXTRAPOLATION SEPARATE</p><h2 class="title reveal">Measured at 20k.<br>Projected beyond.</h2></div>
+<div class="slide-body" style="top:470px;bottom:145px">
+<div class="cols-2">
+<div><div class="stat-grid" style="grid-template-columns:1fr 1fr;margin-top:0"><div class="stat reveal"><strong>20,000</strong><span>synthetic nodes</span></div><div class="stat reveal"><strong>2,187</strong><span>blocks · one sweep</span></div><div class="stat reveal"><strong>71.4%</strong><span>block-QAOA / total weight</span></div><div class="stat reveal"><strong>74.6%</strong><span>one greedy run</span></div></div><div class="callout reveal" style="margin-top:26px">Measured wall time: about 69 seconds on this workstation.</div></div>
+<div><table class="table reveal"><thead><tr><th>Scale</th><th>12-qubit blocks</th><th>One core</th><th>1,000 ideal workers</th></tr></thead><tbody><tr><td>1 million</td><td>109,350</td><td>57.6 min</td><td>3 s</td></tr><tr><td>5 million</td><td>546,750</td><td>4.8 h</td><td>17 s</td></tr></tbody></table><p class="label" style="margin-top:24px">Extrapolated from simulator time; parallel times are idealized.</p></div>
+</div>
+</div>
+<footer class="footer"><span>No run on a million-node graph or physical quantum hardware is claimed.</span><span>21</span></footer>
+<template class="speaker-notes">The 20,000-node graph had 59,991 edges. One sweep took about 69 seconds, with block QAOA reaching 71.4% of total weight versus 74.6% for one greedy start. The million and five-million rows extrapolate observed block throughput; 1,000-worker estimates assume ideal parallel execution and omit coordination, hardware queueing, and shot latency.</template>
+</section>
+
+<!-- Slide 22: live demo handoff -->
+<section class="slide" data-title="Live demo">
+<div class="canvas-grid"></div><header class="masthead"><span>LIVE DEMO</span><span class="slide-no">22</span></header>
+<div class="slide-head"><p class="kicker reveal">NOW FOLLOW THE DATA THROUGH THE APP</p><h2 class="title reveal">From settings<br>to a visible partition.</h2><p class="subtitle reveal">Open the running demo and use the 16-node paper network.</p></div>
+<div class="slide-body" style="top:500px;bottom:150px"><div class="cols-2">
+<div class="callout reveal"><strong>Demo order</strong><br>1. Run QAOA on the paper graph<br>2. Show the cut and group membership<br>3. Compare measured outcomes with classical baselines<br>4. Open “Scale to thousands” for a synthetic graph</div>
+<div><a class="demo-link reveal" href="http://localhost:3000" target="_blank" rel="noopener">Open QAOA Community Lab</a><p class="subtitle reveal" style="font-size:20px">Keep the deck open; the demo opens in another tab.</p></div>
+</div></div>
+<footer class="footer"><span>The app is a teaching/demo surface; it is not part of the paper’s scientific contribution.</span><span>22</span></footer>
+<template class="speaker-notes">Use the on-screen demo now. The run settings are p, shots, optimizer iterations and random starts. Click Run QAOA; while it computes, explain that this demo uses a simulator. Show the result, convergence, measurements, classical baseline tab and then the scalability page. Stop at 1,000 nodes if time is limited.</template>
+</section>
+
+<!-- Slide 23: project limitations -->
+<section class="slide slide-dark" data-title="What the evidence cannot claim">
+<div class="slide-grid"></div><header class="masthead"><span>LIMITATIONS</span><span class="slide-no">23</span></header>
+<div class="slide-head"><p class="kicker reveal">CREDIBILITY COMES FROM BOUNDARIES</p><h2 class="title reveal">What these results<br>do not prove.</h2></div>
+<div class="slide-body" style="top:490px;bottom:140px"><div class="cols-2">
+<div class="callout reveal"><strong>Not demonstrated</strong><br>Quantum speedup<br>Real-platform community recovery<br>Physical-chip QAOA result<br>Measured million-node execution</div>
+<div class="callout reveal"><strong>Actually tested</strong><br>One hand-built 16-node graph<br>Synthetic scale-free graphs to 20,000 nodes<br>FakeSherbrooke noise in Aer<br>Block-QAOA on a CPU simulator</div>
+</div><p class="subtitle reveal" style="font-size:23px;margin-top:34px">On the exact small graph, strong classical baselines tie or beat QAOA.</p></div>
+<footer class="footer"><span>This is a hybrid research prototype, not a quantum-advantage result.</span><span>23</span></footer>
+<template class="speaker-notes">If asked why not use millions of nodes directly: a monolithic circuit needs one qubit per node. The decomposition is a tested architecture on synthetic graphs, but this work does not claim a million-node execution or speedup. State the exact status honestly.</template>
+</section>
+
+<!-- Slide 24: future work -->
+<section class="slide" data-title="Next experiments">
+<div class="canvas-grid"></div><header class="masthead"><span>FUTURE WORK</span><span class="slide-no">24</span></header>
+<div class="slide-head"><p class="kicker reveal">TURN THE ROADMAP INTO TESTS</p><h2 class="title reveal">The next steps are measurable.</h2></div>
+<div class="slide-body" style="top:440px;bottom:145px"><div class="flow">
+<div class="flow-step reveal"><span class="step-num">HARDWARE</span><h3>Run p=1 on IBM</h3><p>Record job ID, backend, shots, calibration and mitigation.</p></div>
+<span class="flow-arrow">→</span><div class="flow-step reveal"><span class="step-num">DATA</span><h3>Use real interactions</h3><p>Document provenance, privacy and preprocessing.</p></div>
+<span class="flow-arrow">→</span><div class="flow-step reveal"><span class="step-num">STATISTICS</span><h3>More starts</h3><p>Compare equal compute budgets and report intervals.</p></div>
+<span class="flow-arrow">→</span><div class="flow-step reveal"><span class="step-num">MODEL</span><h3>Test k-way splits</h3><p>Define a different objective and validate it separately.</p></div>
+</div><p class="callout reveal" style="margin-top:22px">Tensor-network block sizes should be measured, not assumed; feasibility depends on entanglement.</p></div>
+<footer class="footer"><span>Real IBM Runtime cell is optional, disabled by default, and not yet tested.</span><span>24</span></footer>
+<template class="speaker-notes">The notebook contains an optional Qiskit IBM Runtime SamplerV2 cell. It will require an IBM Quantum account, enabled service access, a token set in the shell, and a compatible operational backend. The code path is implemented but not validated against live hardware, and hardware results should not be claimed before a successful run.</template>
+</section>
+
+<!-- Slide 25: references and close -->
+<section class="slide" data-title="Takeaway and selected sources">
+<div class="canvas-grid"></div><header class="masthead"><span>TAKEAWAY</span><span class="slide-no">25</span></header>
+<div class="slide-head"><p class="kicker reveal">A RESULT WE CAN DEFEND</p><h2 class="title reveal">Small-instance quality.<br>Bounded scale claims.</h2><p class="subtitle reveal">QAOA concentrates probability on strong cuts; classical baselines remain competitive, and noise costs grow with depth.</p></div>
+<div class="slide-body" style="top:640px;bottom:125px"><div class="cols-2">
+<div class="callout reveal"><strong>In one sentence</strong><br>A validated QAOA Max-Cut solver and a 12-qubit block decomposition were tested in simulation; no quantum advantage or physical hardware result is claimed.</div>
+<div class="small-equation reveal" style="font-size:17px">Selected sources: Farhi et al. (2014); Goemans & Williamson (1995); Zhou et al. (2020); Harrigan et al. (2021); Bravyi et al. (2020); Lucas (2014); Crooks (2018).<br><br>Full references: QAOA-Paper/sn-article.tex</div>
+</div></div>
+<footer class="footer"><span>Visual language is IBM-inspired; this independent project is not an IBM product.</span><span>25</span></footer>
+<template class="speaker-notes">Close by restating the evidence and the boundary of the claim. The seven selected references provide historical and methodological context; the research paper contains the full 24-entry bibliography. Invite questions on the objective, simulator/hardware difference, and scalability approach.</template>
+</section>
+</main>
+</div>
+
+<!-- Presentation controls and notes live outside the fixed slide stage. -->
+<div class="deck-controls" aria-label="Presentation controls">
+<button id="prevSlide" type="button">Previous</button>
+<span id="slideCounter" aria-live="polite">1 / 25</span>
+<button id="nextSlide" type="button">Next</button>
+<button id="notesToggle" type="button" aria-expanded="false">Speaker notes</button>
+<button id="editToggle" class="edit-toggle" type="button" title="Edit text (E)">Edit</button>
+<button id="saveDeck" class="save-toggle" type="button" title="Save edited presentation">Save HTML</button>
+</div>
+<div class="edit-hotzone" id="editHotzone" aria-hidden="true"></div>
+<aside class="notes-panel" id="notesPanel" aria-live="polite" aria-hidden="true">
+<div class="notes-head"><strong id="noteTitle">Speaker notes</strong><button id="closeNotes" type="button">Close</button></div>
+<div id="notesText"></div>
+</aside>
+<script>
+/* === SLIDE CONTROLLER === */
+const stage = document.getElementById('deckStage');
+const slides = [...document.querySelectorAll('.slide')];
+const counter = document.getElementById('slideCounter');
+const notesPanel = document.getElementById('notesPanel');
+const noteTitle = document.getElementById('noteTitle');
+const notesText = document.getElementById('notesText');
+let current = 0;
+let wheelLock = false;
+let touchStart = null;
+function fitStage() {
+  const scale = Math.min(innerWidth / 1920, innerHeight / 1080);
+  const x = (innerWidth - 1920 * scale) / 2;
+  const y = (innerHeight - 1080 * scale) / 2;
+  stage.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+}
+function setNotes(index) {
+  const note = slides[index].querySelector('.speaker-notes');
+  noteTitle.textContent = `Speaker notes · ${String(index + 1).padStart(2, '0')}`;
+  notesText.textContent = note ? note.content.textContent.trim() : '';
+}
+function showSlide(index, direction = 1) {
+  const nextIndex = Math.max(0, Math.min(index, slides.length - 1));
+  if (nextIndex === current && slides[current].classList.contains('active')) return;
+  const previous = slides[current];
+  const next = slides[nextIndex];
+  previous.classList.remove('active', 'visible');
+  previous.classList.add('exiting');
+  next.classList.add(direction < 0 ? 'from-left' : 'from-right');
+  void next.offsetWidth;
+  next.classList.add('active', 'visible');
+  current = nextIndex;
+  counter.textContent = `${current + 1} / ${slides.length}`;
+  setNotes(current);
+  setTimeout(() => {
+    previous.classList.remove('exiting');
+    next.classList.remove('from-left', 'from-right');
+  }, 420);
+}
+function toggleNotes(force) {
+  const open = force ?? notesPanel.getAttribute('aria-hidden') === 'true';
+  notesPanel.setAttribute('aria-hidden', String(!open));
+  notesPanel.classList.toggle('open', open);
+  document.getElementById('notesToggle').setAttribute('aria-expanded', String(open));
+  setNotes(current);
+}
+function next() { showSlide(current + 1, 1); }
+function previous() { showSlide(current - 1, -1); }
+fitStage();
+addEventListener('resize', fitStage);
+document.getElementById('nextSlide').addEventListener('click', next);
+document.getElementById('prevSlide').addEventListener('click', previous);
+document.getElementById('notesToggle').addEventListener('click', () => toggleNotes());
+document.getElementById('closeNotes').addEventListener('click', () => toggleNotes(false));
+addEventListener('keydown', (event) => {
+  const target = event.target;
+  const editingText = target instanceof HTMLElement && (target.isContentEditable || ['INPUT','TEXTAREA'].includes(target.tagName));
+  const notesFocused = notesPanel.contains(target);
+  if (!editingText && !notesFocused && (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === 'PageDown' || event.key === ' ')) { event.preventDefault(); next(); }
+  else if (!editingText && !notesFocused && (event.key === 'ArrowLeft' || event.key === 'ArrowUp' || event.key === 'PageUp')) { event.preventDefault(); previous(); }
+  else if (!editingText && (event.key === 'n' || event.key === 'N')) toggleNotes();
+  else if (!editingText && (event.key === 'e' || event.key === 'E')) toggleEdit();
+  else if (event.key === 'Escape') toggleNotes(false);
+  else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); saveHtml(); }
+});
+stage.addEventListener('touchstart', (event) => { touchStart = event.changedTouches[0].clientX; }, {passive:true});
+stage.addEventListener('touchend', (event) => {
+  if (touchStart === null) return;
+  const delta = event.changedTouches[0].clientX - touchStart;
+  if (Math.abs(delta) > 70) (delta < 0 ? next : previous)();
+  touchStart = null;
+}, {passive:true});
+stage.addEventListener('wheel', (event) => {
+  if (wheelLock || Math.abs(event.deltaY) < 35) return;
+  wheelLock = true;
+  (event.deltaY > 0 ? next : previous)();
+  setTimeout(() => wheelLock = false, 650);
+}, {passive:true});
+
+/* === INLINE TEXT EDITOR === */
+const editButton = document.getElementById('editToggle');
+const hotzone = document.getElementById('editHotzone');
+let editMode = false;
+let hideTimer;
+function restoreEdits() {
+  document.querySelectorAll('[data-editable]').forEach((el) => {
+    const key = `qaoa-presentation:${el.dataset.editable || el.textContent.trim()}`;
+    const saved = localStorage.getItem(key);
+    if (saved !== null) el.innerHTML = saved;
+    el.dataset.editKey = key;
+  });
+}
+function toggleEdit(force) {
+  editMode = force ?? !editMode;
+  document.querySelectorAll('[data-editable]').forEach((el) => {
+    el.contentEditable = String(editMode);
+    el.spellcheck = false;
+    el.classList.toggle('editable-on', editMode);
+    if (editMode) el.addEventListener('input', () => localStorage.setItem(el.dataset.editKey, el.innerHTML), {once:false});
+  });
+  editButton.classList.toggle('active', editMode);
+  editButton.classList.toggle('show', editMode);
+  editButton.textContent = editMode ? 'Editing on' : 'Edit';
+}
+function saveHtml() {
+  const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  const blob = new Blob([html], {type:'text/html'});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'QAOA_Community_Detection_Demo.html';
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+editButton.addEventListener('click', () => toggleEdit());
+document.getElementById('saveDeck').addEventListener('click', saveHtml);
+hotzone.addEventListener('mouseenter', () => { clearTimeout(hideTimer); editButton.classList.add('show'); });
+hotzone.addEventListener('mouseleave', () => { hideTimer = setTimeout(() => { if (!editMode) editButton.classList.remove('show'); }, 400); });
+editButton.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+editButton.addEventListener('mouseleave', () => { hideTimer = setTimeout(() => { if (!editMode) editButton.classList.remove('show'); }, 400); });
+restoreEdits();
+setNotes(0);
+</script>
+</body>
+</html>

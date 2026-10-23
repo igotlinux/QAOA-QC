@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Max-Cut Community Detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
+<style>
+:root { --stage-bg:#1b1b1b; --slide-bg:#f0ebde; --paper:#f0ebde; --paper-two:#e6e0ce; --ink:#1f2be0; --ink-soft:#5660d7; --dark:#1b1b1b; --font:'Newsreader',serif; --mono:'DM Mono',monospace; }
+/* ===========================================
+   FIXED 16:9 STAGE: MANDATORY BASE STYLES
+   Include this ENTIRE file in every presentation.
+   Slides are authored at 1920×1080 and scaled as a whole.
+   =========================================== */
+
+/* 1. Lock the browser viewport */
+html,
+body {
+   width: 100%;
+   height: 100%;
+   margin: 0;
+   overflow: hidden;
+   background: var(--stage-bg, #000);
+}
+
+/* 2. Full-window deck viewport */
+.deck-viewport {
+   position: fixed;
+   inset: 0;
+   overflow: hidden;
+   background: var(--stage-bg, #000);
+}
+
+/* 3. Fixed 16:9 design canvas.
+   JavaScript sets transform: translate(...) scale(...). */
+.deck-stage {
+   position: absolute;
+   left: 0;
+   top: 0;
+   width: 1920px;
+   height: 1080px;
+   overflow: hidden;
+   transform-origin: 0 0;
+   background: var(--slide-bg, #fff);
+}
+
+/* 4. Slides stack inside the fixed stage.
+   Content must be laid out at 1920×1080, not reflowed per device. */
+.slide {
+   position: absolute;
+   inset: 0;
+   width: 1920px;
+   height: 1080px;
+   overflow: hidden;
+   display: block;
+   visibility: hidden;
+   opacity: 0;
+   pointer-events: none;
+   background: var(--slide-bg, #fff);
+}
+
+.slide.active,
+.slide.visible {
+   visibility: visible;
+   opacity: 1;
+   pointer-events: auto;
+   z-index: 1;
+}
+
+/* 5. Keep media inside authored slide bounds */
+img,
+video,
+canvas,
+svg {
+   max-width: 100%;
+   max-height: 100%;
+}
+
+/* 6. Presentation chrome stays outside the slide design system */
+.deck-controls {
+   position: fixed;
+   left: 50%;
+   bottom: 22px;
+   transform: translateX(-50%);
+   z-index: 1000;
+}
+
+/* 7. Print one fixed-size slide per page */
+@media print {
+   html,
+   body {
+      width: 1920px;
+      height: auto;
+      overflow: visible;
+      background: #fff;
+   }
+
+   .deck-viewport {
+      position: static;
+      overflow: visible;
+      background: #fff;
+   }
+
+   .deck-stage {
+      position: static;
+      width: auto;
+      height: auto;
+      transform: none !important;
+      background: none;
+   }
+
+   .slide {
+      position: relative;
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+      width: 1920px;
+      height: 1080px;
+      break-after: page;
+      page-break-after: always;
+   }
+
+   .slide:last-child {
+      break-after: auto;
+      page-break-after: auto;
+   }
+
+   .deck-controls {
+      display: none !important;
+   }
+}
+
+/* 8. Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+   *,
+   *::before,
+   *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.2s !important;
+   }
+}
+* { box-sizing:border-box; }
+body { font-family:var(--font); color:var(--dark); }
+.slide { background:var(--paper); }
+.paper-grid { position:absolute; inset:0; background-image:linear-gradient(to right,rgba(31,43,224,.11) 1px,transparent 1px),linear-gradient(to bottom,rgba(31,43,224,.11) 1px,transparent 1px); background-size:60px 60px; mask-image:linear-gradient(105deg,transparent 2%,#000 40%,#000 100%); opacity:.42; }
+.frame { position:absolute; inset:48px; border-top:2px solid var(--ink); border-bottom:2px solid var(--ink); pointer-events:none; }
+.mast { position:absolute; top:84px; left:112px; right:112px; display:flex; justify-content:space-between; align-items:center; color:var(--ink); font:500 17px var(--mono); text-transform:uppercase; }
+.left-rule { position:absolute; left:112px; top:180px; bottom:140px; width:2px; background:var(--ink); }
+main { position:absolute; left:176px; top:230px; width:1150px; }
+.chapter { margin:0 0 38px; color:var(--ink); font:500 18px var(--mono); }
+h1 { max-width:1140px; margin:0; color:var(--ink); font:500 112px/1.02 var(--font); letter-spacing:0; }
+.sub { margin:30px 0 0; max-width:900px; font:400 34px/1.24 var(--font); color:#31334d; }
+.spec { position:absolute; right:145px; bottom:188px; width:395px; border-top:1px solid var(--ink); padding-top:18px; color:var(--ink); font:400 16px/1.6 var(--mono); }
+.spec strong { display:block; margin-bottom:8px; font-weight:500; }
+.cut-number { position:absolute; right:155px; top:245px; color:var(--ink); font:500 214px/.9 var(--font); }
+.cut-label { position:absolute; right:170px; top:455px; color:var(--ink); font:500 15px var(--mono); }
+.footer { position:absolute; left:112px; right:112px; bottom:90px; display:flex; justify-content:space-between; color:#41415c; font:400 15px var(--mono); }
+.reveal { opacity:0; transform:translateX(-18px); transition:opacity .45s cubic-bezier(.2,.7,.2,1),transform .45s cubic-bezier(.2,.7,.2,1); }
+.visible .reveal { opacity:1; transform:translateX(0); }
+.visible .reveal:nth-child(2) { transition-delay:.1s; }
+.visible .reveal:nth-child(3) { transition-delay:.2s; }
+.visible .reveal:nth-child(4) { transition-delay:.3s; }
+.ticker { animation:ticker 1.3s .2s cubic-bezier(.2,.7,.2,1) both; transform-origin:left; }
+@keyframes ticker { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+</style>
+</head>
+<body>
+<div class="deck-viewport"><main class="deck-stage" id="stage">
+<section class="slide active visible">
+<div class="paper-grid"></div><div class="frame"></div><div class="left-rule"></div>
+<header class="mast"><span>COEP TECHNOLOGICAL UNIVERSITY</span><span>QUANTUM PROJECT · GROUP 03</span></header>
+<main>
+<p class="chapter reveal">MAX-CUT / SOCIAL NETWORKS</p>
+<h1 class="reveal">A partition is<br>a point of view.</h1>
+<p class="sub reveal">A scalable hybrid quantum-classical framework for cross-group interaction.</p>
+</main>
+<div class="cut-number reveal">44</div><div class="cut-label reveal">EXACT OPTIMUM · 16-NODE GRAPH</div>
+<div class="spec reveal"><strong class="ticker">VALIDATION → SCALE</strong>16 users · 26 weighted edges<br>Block-QAOA tested to 20,000 synthetic users</div>
+<footer class="footer"><span>Rohit Rao · Viraj Nalbalwar · Shreesh Kolhatkar · Om Shingare</span><span>01</span></footer>
+</section>
+</main></div>
+<script>
+const stage=document.getElementById('stage');function fit(){const s=Math.min(innerWidth/1920,innerHeight/1080);stage.style.transform=`translate(${(innerWidth-1920*s)/2}px,${(innerHeight-1080*s)/2}px) scale(${s})`;}
+fit();addEventListener('resize',fit);
+</script>
+</body>
+</html>

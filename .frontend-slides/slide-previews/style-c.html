@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Max-Cut Community Detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root { --stage-bg:#001141; --slide-bg:#001141; --navy:#001141; --blue:#0f62fe; --blue-light:#78a9ff; --cyan:#33b1ff; --white:#fff; --gray:#c6c6c6; --gray-dark:#343a3f; --yellow:#f1c21b; --sans:'IBM Plex Sans',sans-serif; --mono:'IBM Plex Mono',monospace; }
+/* ===========================================
+   FIXED 16:9 STAGE: MANDATORY BASE STYLES
+   Include this ENTIRE file in every presentation.
+   Slides are authored at 1920×1080 and scaled as a whole.
+   =========================================== */
+
+/* 1. Lock the browser viewport */
+html,
+body {
+   width: 100%;
+   height: 100%;
+   margin: 0;
+   overflow: hidden;
+   background: var(--stage-bg, #000);
+}
+
+/* 2. Full-window deck viewport */
+.deck-viewport {
+   position: fixed;
+   inset: 0;
+   overflow: hidden;
+   background: var(--stage-bg, #000);
+}
+
+/* 3. Fixed 16:9 design canvas.
+   JavaScript sets transform: translate(...) scale(...). */
+.deck-stage {
+   position: absolute;
+   left: 0;
+   top: 0;
+   width: 1920px;
+   height: 1080px;
+   overflow: hidden;
+   transform-origin: 0 0;
+   background: var(--slide-bg, #fff);
+}
+
+/* 4. Slides stack inside the fixed stage.
+   Content must be laid out at 1920×1080, not reflowed per device. */
+.slide {
+   position: absolute;
+   inset: 0;
+   width: 1920px;
+   height: 1080px;
+   overflow: hidden;
+   display: block;
+   visibility: hidden;
+   opacity: 0;
+   pointer-events: none;
+   background: var(--slide-bg, #fff);
+}
+
+.slide.active,
+.slide.visible {
+   visibility: visible;
+   opacity: 1;
+   pointer-events: auto;
+   z-index: 1;
+}
+
+/* 5. Keep media inside authored slide bounds */
+img,
+video,
+canvas,
+svg {
+   max-width: 100%;
+   max-height: 100%;
+}
+
+/* 6. Presentation chrome stays outside the slide design system */
+.deck-controls {
+   position: fixed;
+   left: 50%;
+   bottom: 22px;
+   transform: translateX(-50%);
+   z-index: 1000;
+}
+
+/* 7. Print one fixed-size slide per page */
+@media print {
+   html,
+   body {
+      width: 1920px;
+      height: auto;
+      overflow: visible;
+      background: #fff;
+   }
+
+   .deck-viewport {
+      position: static;
+      overflow: visible;
+      background: #fff;
+   }
+
+   .deck-stage {
+      position: static;
+      width: auto;
+      height: auto;
+      transform: none !important;
+      background: none;
+   }
+
+   .slide {
+      position: relative;
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+      width: 1920px;
+      height: 1080px;
+      break-after: page;
+      page-break-after: always;
+   }
+
+   .slide:last-child {
+      break-after: auto;
+      page-break-after: auto;
+   }
+
+   .deck-controls {
+      display: none !important;
+   }
+}
+
+/* 8. Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+   *,
+   *::before,
+   *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.2s !important;
+   }
+}
+* { box-sizing:border-box; }
+body { color:var(--white); font-family:var(--sans); }
+.slide { background:var(--navy); }
+.grid { position:absolute; inset:0; opacity:.12; background-image:linear-gradient(rgba(120,169,255,.55) 1px,transparent 1px),linear-gradient(90deg,rgba(120,169,255,.55) 1px,transparent 1px); background-size:64px 64px; mask-image:linear-gradient(90deg,transparent 0%,#000 40%,#000 100%); }
+.topline { position:absolute; left:96px; right:96px; top:72px; display:flex; align-items:center; justify-content:space-between; font:500 17px var(--mono); color:#d0e2ff; }
+.topline .blue { color:var(--blue-light); }
+.bar { position:absolute; top:118px; left:96px; right:96px; height:4px; background:#343a3f; }
+.bar::before { content:""; display:block; width:32%; height:100%; background:var(--blue); transform-origin:left; animation:progress 1.1s .2s ease-out both; }
+@keyframes progress { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+.copy { position:absolute; left:112px; top:220px; width:880px; }
+.copy .eyeline { color:var(--cyan); font:500 17px var(--mono); margin-bottom:35px; }
+h1 { margin:0; font-size:102px; line-height:1.03; font-weight:500; letter-spacing:0; }
+.copy p { margin:32px 0 0; max-width:750px; color:#d0d7e0; font-size:31px; line-height:1.36; }
+.route { position:absolute; left:1090px; top:260px; width:720px; height:430px; }
+.route path { fill:none; stroke:var(--blue-light); stroke-width:4; stroke-linecap:round; stroke-dasharray:900; stroke-dashoffset:900; animation:route 1.1s .35s cubic-bezier(.2,.7,.2,1) forwards; }
+@keyframes route { to { stroke-dashoffset:0; } }
+.route circle { fill:var(--navy); stroke:var(--cyan); stroke-width:4; }
+.route circle:last-child { fill:var(--yellow); stroke:var(--yellow); }
+.annotation { position:absolute; left:1110px; top:730px; display:flex; gap:48px; color:#d0d7e0; font:400 17px var(--mono); }
+.annotation strong { color:var(--white); display:block; font-size:25px; font-weight:500; margin-bottom:6px; }
+.footer { position:absolute; left:112px; right:112px; bottom:72px; border-top:1px solid #343a3f; padding-top:19px; display:flex; justify-content:space-between; color:#c6c6c6; font:400 15px var(--mono); }
+.reveal { opacity:0; transform:translateY(24px); transition:opacity .45s cubic-bezier(.2,.7,.2,1),transform .45s cubic-bezier(.2,.7,.2,1); }
+.visible .reveal { opacity:1; transform:translateY(0); }
+.visible .reveal:nth-child(2) { transition-delay:.12s; }
+.visible .reveal:nth-child(3) { transition-delay:.24s; }
+</style>
+</head>
+<body>
+<div class="deck-viewport"><main class="deck-stage" id="stage">
+<section class="slide active visible">
+<div class="grid"></div>
+<header class="topline"><span>COEP TECHNOLOGICAL UNIVERSITY <span class="blue">/ GROUP 03</span></span><span>QUANTUM PROJECT · 2026</span></header>
+<div class="bar"></div>
+<div class="copy">
+<div class="eyeline reveal">FROM INTERACTIONS TO PARTITIONS</div>
+<h1 class="reveal">Max-Cut<br>community<br>detection.</h1>
+<p class="reveal">A hybrid QAOA framework for weighted social networks, with a path from verified small graphs to bounded quantum subproblems.</p>
+</div>
+<svg class="route" viewBox="0 0 720 430" aria-label="A connected path between two groups">
+<path d="M60 100 C180 100 190 315 320 315 S470 110 620 110"/>
+<circle cx="60" cy="100" r="17"/><circle cx="320" cy="315" r="17"/><circle cx="620" cy="110" r="17"/>
+</svg>
+<div class="annotation reveal"><div><strong>16</strong>validation users</div><div><strong>44</strong>exact optimum</div><div><strong>20k</strong>synthetic graph test</div></div>
+<footer class="footer"><span>Rohit Rao · Viraj Nalbalwar · Shreesh Kolhatkar · Om Shingare</span><span>01</span></footer>
+</section>
+</main></div>
+<script>
+const stage=document.getElementById('stage');function fit(){const s=Math.min(innerWidth/1920,innerHeight/1080);stage.style.transform=`translate(${(innerWidth-1920*s)/2}px,${(innerHeight-1080*s)/2}px) scale(${s})`;}
+fit();addEventListener('resize',fit);
+</script>
+</body>
+</html>

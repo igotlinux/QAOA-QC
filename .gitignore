@@ -1,3 +1,9 @@
 qaoa_env
 *.png
 analysis_results
+.venv/
+__pycache__/
+*.pyc
+notebooks/.ipynb_checkpoints/
+!QAOA-Paper/*.png
+!results/figs/*.png
